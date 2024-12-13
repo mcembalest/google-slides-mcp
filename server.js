@@ -12,7 +12,7 @@ import { promisify } from 'util';
 import { z } from "zod";
 import fs from 'fs/promises';
 
-const PRESENTATION_ID = '1MP5J-zOdqRVPLj9sfvqKK5d7Zx7YCo4vDrsP9r58L7A';
+const PRESENTATION_ID = 'TODO-PUT-GOOGLE-SLIDES-PRESENTATION-ID-HERE';
 const CREDENTIALS_PATH = 'gcp-oauth.keys.json';
 const TOKEN_PATH = '.slides-server-credentials.json';
 const SCOPES = ['https://www.googleapis.com/auth/presentations'];
@@ -119,7 +119,6 @@ async function getSlideService() {
   }
 }
 
-// Update the tool execution handler
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
@@ -211,7 +210,6 @@ async function findSlideElements(slides, presentationId, slideIndex) {
   };
 }
 
-// Update the tool handlers to have two distinct operations
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [{
