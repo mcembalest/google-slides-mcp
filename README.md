@@ -2,6 +2,12 @@
 
 Tool for programmatically writing to Google Slides presentations using the [Model Context Protocol](https://modelcontextprotocol.io/)
 
+
+
+https://github.com/user-attachments/assets/70e71124-3728-4aaa-bb5d-a97800713b90
+
+
+
 ## Run
 
 ```bash
