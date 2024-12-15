@@ -12,7 +12,7 @@ import { promisify } from 'util';
 import { z } from "zod";
 import fs from 'fs/promises';
 
-const PRESENTATION_ID = 'TODO-PUT-GOOGLE-SLIDES-PRESENTATION-ID-HERE';
+const PRESENTATION_ID = 'presentation-id-from-google-slides-url';
 const CREDENTIALS_PATH = 'gcp-oauth.keys.json';
 const TOKEN_PATH = '.slides-server-credentials.json';
 const SCOPES = ['https://www.googleapis.com/auth/presentations'];
@@ -182,32 +182,78 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   throw new Error(`Unknown tool: ${name}`);
 });
 
+async function createTextBox(slides, presentationId, slideIndex, isTitle = false) {
+  const height = isTitle ? 50 : 300;
+  const y = isTitle ? 30 : 150;
+  
+  const response = await slides.presentations.batchUpdate({
+    presentationId: presentationId,
+    requestBody: {
+      requests: [{
+        createShape: {
+          objectId: `${isTitle ? 'title' : 'content'}_${slideIndex}_${Date.now()}`,
+          shapeType: 'TEXT_BOX',
+          elementProperties: {
+            pageObjectId: `slide_${slideIndex}`,
+            size: {
+              height: { magnitude: height, unit: 'PT' },
+              width: { magnitude: 600, unit: 'PT' }
+            },
+            transform: {
+              scaleX: 1,
+              scaleY: 1,
+              translateX: 50,
+              translateY: y,
+              unit: 'PT'
+            }
+          }
+        }
+      }]
+    }
+  });
+
+  return response.data.replies[0].createShape.objectId;
+}
+
 async function findSlideElements(slides, presentationId, slideIndex) {
   const presentation = await slides.presentations.get({
     presentationId: PRESENTATION_ID,
   });
   
   const slide = presentation.data.slides[slideIndex - 1];
-  if (!slide || !slide.pageElements) {
+  if (!slide) {
     throw new Error(`Could not find slide number ${slideIndex}`);
   }
   
-  console.log(`Found slide elements for slide ${slideIndex}:`, slide.pageElements);
-  
-  // Find the elements by their vertical position
-  // The element with higher translateY is the content (appears lower on slide)
-  const sortedElements = slide.pageElements
+  // Find existing text boxes
+  const sortedElements = (slide.pageElements || [])
     .filter(el => el.shape?.shapeType === 'TEXT_BOX')
     .sort((a, b) => a.transform.translateY - b.transform.translateY);
 
-  if (sortedElements.length < 2) {
-    throw new Error("Could not find required text elements on slide");
+  let titleId, contentId;
+
+  // If we have at least one element
+  if (sortedElements.length >= 1) {
+    titleId = sortedElements[0].objectId;
+  }
+  
+  // If we have at least two elements
+  if (sortedElements.length >= 2) {
+    contentId = sortedElements[1].objectId;
   }
 
-  return {
-    titleId: sortedElements[0].objectId,  // Higher up element is title
-    contentId: sortedElements[1].objectId  // Lower element is content
-  };
+  // Create missing elements
+  if (!titleId) {
+    console.log('Creating title text box...');
+    titleId = await createTextBox(slides, presentationId, slideIndex, true);
+  }
+
+  if (!contentId) {
+    console.log('Creating content text box...');
+    contentId = await createTextBox(slides, presentationId, slideIndex, false);
+  }
+
+  return { titleId, contentId };
 }
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
